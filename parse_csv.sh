@@ -1,34 +1,44 @@
 #!/bin/bash
-# Purpose: ISS MI challenge script - Parse csv files v.01
-# LB 01/07/2022
+# Purpose: ISS MI challenge script - Parse csv files v.03
+# LB 04/07/2022
+# "Usage $0 STRING:input_file STRING:output_file INT:desired_cols INT:desired_rows"
 # -------------------------------------------------------
 
-#script settings
-set -o errexit #exit on error
-set -o xtrace #trace what gets executed for debugging
+# SCRIPT SETTINGS
+LOG_FILE=debug_parse_csv.log # debug log file
+exec {BASH_XTRACEFD}>$LOG_FILE # redirect debug to $LOG_FILE
+set -o errexit # exit on error
+set -o xtrace # trace what gets executed for debugging
 
-#declare variables here
-log_file=error-log.log
-# Counts for error checking 
-initial_columns=0
-initial_data_rows=0
-finished_columns=0
-finished_data_rows=0
-# Desired headers - convert to upper case
-headers_accounts="accountid,company_name,address1,address2,address3,address4,postcode,website"
-headers_contacts="contactid,accountid,first_name,last_name,job_title,mobile,telephone"
+# Error codes
+E_WRONGARGS=65 # rename this variable
+E_INVALIDARGS=66
+E_NOTFOUND=86
+E_NOTRECOGNIZED=87
+E_INVALIDCOLS=95
+E_INVALIDROWS=96
+E_MATCHDATAROWS=97
 
-#functions to check number of columns and data rows 
-function count_data_rows {
-    data_rows=0
-    while read line
-    do
-        #echo "Line: $line"
-        ((data_rows+=1))
-    done < <(tail -n +2 $1 )
-    echo $data_rows
-}
+#INPUT CHECKS
+IS_NUMBER_RE='^[0-9]+$'
 
+if [ $# -lt 4 ]; then # check if all args are provided
+    echo "Usage $0 input_file output_file desired_cols desired_rows"
+    exit $E_WRONGARGS
+elif ! [[ $3 =~ $IS_NUMBER_RE ]] || ! [[ $4 =~ $IS_NUMBER_RE ]]; then # check if $3 and $4 are integers
+    echo "Usage $0 input_file output_file desired_cols desired_rows"
+    exit $E_INVALIDARGS
+elif [ ! -e "$1" ]; then # check if input file exists
+    echo "File not found."
+    exit $E_NOTFOUND
+fi
+
+# DESIRED HEADERS FOR OUTPUT FILES
+HEADERS_ACCOUNTS="accountid,company_name,address1,address2,address3,address4,postcode,website"
+HEADERS_CONTACTS="contactid,accountid,first_name,last_name,job_title,mobile,telephone"
+DATA_ROWS_RANGE=5 # data rows count tolerance percent (+/-) 
+
+# functions to count number of columns and data rows
 function count_columns {
     # count comas in the header row, add 1
     columns=$(head -n1 $1 | grep -o "," | wc -l)
@@ -36,51 +46,63 @@ function count_columns {
     echo $columns
 }
 
+function count_data_rows {
+    # count lines starting with <"00> 
+    echo $(grep -c '^\"00' $1)
+}
 
-#1 create working copy of a file
-if (($# == 2)); then
-    cat $1 > $2
-    echo "Copy created in $2"
-else
-    echo "1. Invalid arguments. Usage: parse_cv.sh input_file output_file" | tee -a ${log_file}
-fi
+# CREATE WORKING COPY OF THE INPUT FILE
+cat $1 > $2
+echo "Copy created in $2"
 
-#2 check the file
+#2 CHECK COLUMNS AND ROWS OF THE INPUT FILE
 #get number of cols and data rows:
-initial_columns=$(count_columns "$2") 
+initial_columns=$(count_columns "$1") 
 initial_data_rows=$(count_data_rows "$2")
 
-#if not correct, throw error
-    # number of columns (if not correct, quit with error) 
-    # number of data rows - exclude headers - (if value > +-5%, quit with error)
+# avoid floats in percentage calculations
+initial_rows_100=$((initial_data_rows * 100))
+expected_rows_100=$(($4 * 100))
+expected_rows_tolerance=$(($4 * $DATA_ROWS_RANGE)) # move 5 to a variable
+
+# check if number of columns in the input file is same as desired amount columns
+if [ $initial_columns != $3 ]; then
+    echo "Error - Incorrect number of columns" # show number here
+    exit $E_INVALIDCOLS
+# number of data rows - exclude headers - (if value >|< 5%, quit with error)
+elif [ $((initial_rows_100)) -lt $((expected_rows_100 - expected_rows_tolerance)) ] \
+     || [ $((initial_rows_100)) -gt $((expected_rows_100 + expected_rows_tolerance)) ]; then
+    echo "Error - Incorrect number of data rows" # show number here
+    exit $E_INVALIDROWS
+fi
 
 
-#3 change the headers (stored in an array)
-    
+#3 CHECK IF FILE IS 'Accounts' or 'Contacts'    
 #read first line of $2 file
 firstline=$(head -n1 $2)
-echo "Initial: $firstline"
-#case statement -> will need fixing - shouldn't depend on output file name
-case $2 in
-    "contacts.csv")
-        replacement_headers=$headers_contacts;;
-    "accounts.csv")
-        replacement_headers=$headers_accounts;;
+case ${1^} in
+    *Contacts*)
+        echo 'Contacts';;
+        # replacement_headers=$headers_contacts;;
+        # replace 0 in the phone numbers with +44
+    *Offices*)
+        echo "Accounts";;
+        # replacement_headers=$headers_accounts;;
+        # replace new lines with comas in the address
+    *)
+        echo "File not recognized."
+        exit $E_NOTRECOGNIZED
 esac
 
 #set var repl_head with accounts_correct_headers
 sed -i'.bak' "s/$firstline/$replacement_headers/" $2 # add -i option to edit same file / backup extension needed to make it work on mac
 
-firstline2=$(head -n1 $2) #for error checking
-echo "Corrected: $firstline2" #for error checking
-
-#4 if file is accounts.csv
-    # replace new lines with comas in the address
-
-#5 if file is contacts.csv 
-    # replace 0 in the phone numbers with +44
-
 #6 check if the working file has same amount of rows as the original file
+finished_data_rows=$(count_data_rows "$2")
+if [ $initial_data_rows != $finished_data_rows ]; then
+    echo "Error: Data rows not matching"
+    exit $E_MATCHDATAROWS
+fi
 
 # exit with 0 if successful
 exit 0
