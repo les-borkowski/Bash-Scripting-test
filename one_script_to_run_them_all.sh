@@ -1,5 +1,5 @@
 #!/bin/bash
-# Purpose: pass files and argumetns to the main script
+# Purpose: pass files and arguments to the main script
 # LB 04/07/2022
 # -------------
 
@@ -11,7 +11,5 @@ bash parse_csv.sh IIS_Contacts_Extract.csv contacts.csv 7 15
 echo
 cat contacts.csv
 
-rm accounts.csv.bak
-rm contacts.csv.bak
 
 exit 0

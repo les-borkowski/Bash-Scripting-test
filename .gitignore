@@ -1,3 +1,7 @@
 *.log
 test*
 IIS_*
+tests/
+backup/
+accounts.csv
+contacts.csv
