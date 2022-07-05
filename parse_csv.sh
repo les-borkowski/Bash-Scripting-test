@@ -11,7 +11,7 @@ set -o errexit # exit on error
 set -o xtrace # trace what gets executed for debugging
 
 # Error codes
-E_WRONGARGSNUM=65 # rename this variable
+E_WRONGARGSNUM=65
 E_INVALIDARGS=66
 E_NOTFOUND=86
 E_NOTRECOGNIZED=87
@@ -70,7 +70,6 @@ cat $1 > $2
 
 
 # (2,3) CHECK COLUMNS AND ROWS OF THE INPUT FILE
-#get number of cols and data rows:
 initial_columns=$(CountColumns "$1") 
 initial_data_rows=$(CountDataRows "$1")
 
