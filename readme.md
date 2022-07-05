@@ -6,6 +6,9 @@ Bash script to parse given .csv files (create copy of the input file, check colu
 
 Script takes four argument as parameters: input file (1), output file (2),  number of expected columns in the file (3), number of expected rows in the file (4)
 
+The script will check if the input is correct and if all needed subscripts are available. A working copy will be created, and required corrections to the files will be applied. Script assumes that the input file will have a string 'Contacts' or 'Offices' in it's name - if not, an error will be shown.
+When complete, message will be shown with the output file name and number of columns and rows in it.
+
 ### Script variables
 
 - HEADERS_ACCOUNTS: comma separated headers for the output accounts file
