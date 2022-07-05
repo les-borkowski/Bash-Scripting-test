@@ -1,7 +1,5 @@
 *.log
 test*
-IIS_*
+*.csv
 tests/
 backup/
-accounts.csv
-contacts.csv
